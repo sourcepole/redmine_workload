@@ -1,0 +1,3 @@
+de:
+  label_workload: Auslastung
+  notice_workload_chart_truncated: Die Grafik ist unvollständig, da das Maximum der anzeigbaren Aufgaben überschritten wurde (%{max})

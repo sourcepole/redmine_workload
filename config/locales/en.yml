@@ -1,0 +1,3 @@
+en:
+  label_workload: Workload
+  notice_workload_chart_truncated: "The chart was truncated because it exceeds the maximum number of items that can be displayed (%{max})"

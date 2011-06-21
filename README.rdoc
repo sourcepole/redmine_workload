@@ -1,0 +1,30 @@
+= Workload plugin for Redmine
+
+A plugin for workload diagrams in Redmine
+
+== Features
+
+== Installation
+get Redmine 1.2-stable branch:
+
+ git clone git://github.com/edavis10/redmine.git
+ cd redmine
+ git checkout 1.2-stable
+
+get workload plugin:
+
+ cd vendor/plugins
+ git clone git://github.com/sourcepole/redmine_workload.git
+
+install Redmine
+
+migrate plugin DB:
+ rake db:migrate_plugins
+
+Run the unit tests:
+ RAILS_ENV=test rake db:migrate_plugins
+ rake test:plugins:units
+
+== Configuration
+
+== Usage
