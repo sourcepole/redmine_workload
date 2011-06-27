@@ -1,0 +1,35 @@
+div.workload {
+  position: absolute;
+  height:8px;
+  font-size:0.8em;
+  color:#888;
+  padding:0;
+  margin:0;
+  line-height:16px;
+  white-space:nowrap;
+}
+
+.workload_0 {
+  background: #FF0000;
+  border: 1px solid #A00000;
+}
+
+.workload_25 {
+  background: #FFC000;
+  border: 1px solid #A05000;
+}
+
+.workload_50 {
+  background: #FFFF00;
+  border: 1px solid #A0A000;
+}
+
+.workload_75 {
+  background: #C0FF00;
+  border: 1px solid #50A000;
+}
+
+.workload_100 {
+  background: #00FF00;
+  border: 1px solid #00A000;
+}

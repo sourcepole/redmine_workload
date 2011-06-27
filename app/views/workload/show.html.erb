@@ -2,7 +2,6 @@
 <h2><%= @query.new_record? ? l(:label_workload) : h(@query.name) %></h2>
 
 <% form_tag({:controller => 'workload', :action => 'show', :project_id => @project, :month => params[:month], :year => params[:year], :months => params[:months]}, :method => :get, :id => 'query_form') do %>
-<%= hidden_field_tag :project_id, @project.identifier %>
 <%= hidden_field_tag 'set_filter', '1' %>
 <fieldset id="filters" class="collapsible <%= @query.new_record? ? "" : "collapsed" %>">
   <legend onclick="toggleFieldset(this);"><%= l(:label_filter_plural) %></legend>
@@ -175,10 +174,11 @@ if Date.today >= @workload.date_from and Date.today <= @workload.date_to %>
 </tr>
 </table>
 
-<% other_formats_links do |f| %>
-	<%= f.link_to 'PDF', :url => params.merge(@workload.params) %>
-	<%= f.link_to('PNG', :url => params.merge(@workload.params)) if @workload.respond_to?('to_image') %>
-<% end %>
+<%# FIXME: hide pdf and png links for now %>
+<%# other_formats_links do |f| %>
+	<%#= f.link_to 'PDF', :url => params.merge(@workload.params) %>
+	<%#= f.link_to('PNG', :url => params.merge(@workload.params)) if @workload.respond_to?('to_image') %>
+<%# end %>
 <% end # query.valid? %>
 
 <% content_for :sidebar do %>

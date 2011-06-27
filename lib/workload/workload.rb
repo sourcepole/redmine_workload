@@ -162,9 +162,10 @@ module Workload
       @lines = '' unless options[:only] == :subjects
       @number_of_rows = 0
 
-      Project.project_tree(projects) do |project, level|
+      level = 0
+      User.active.all(:order => "lastname").each do |user|
         options[:indent] = indent + level * options[:indent_increment]
-        render_project(project, options)
+        render_user(user, options)
         break if abort?
       end
 
@@ -172,6 +173,102 @@ module Workload
       @lines_rendered = true unless options[:only] == :subjects
 
       render_end(options)
+    end
+
+    def render_user(user, options={})
+      subject_for_user(user, options) unless options[:only] == :lines
+      line_for_user(user, options) unless options[:only] == :subjects
+
+      options[:top] += options[:top_increment]
+      @number_of_rows += 1
+    end
+
+    def subject_for_user(user, options={})
+      # TODO: formats
+
+      subject = "<span class='icon icon-user'>"
+      subject << view.link_to_user(user)
+      subject << '</span>'
+      html_subject(options, subject, :css => "project-name")
+    end
+
+    def line_for_user(user, options={})
+      # TODO: formats
+
+      options[:zoom] ||= 1
+      options[:g_width] ||= (self.date_to - self.date_from + 1) * options[:zoom]
+
+      user_workload(user, options)
+    end
+
+    def user_workload(user, options={})
+      # TODO: apply query filter to issues
+      # TODO: filter issues by visible date range, closed
+      issues = @query.issues(
+        :conditions => ["assigned_to_id=? AND due_date IS NOT NULL AND estimated_hours IS NOT NULL", user.id],
+        :order => "start_date"
+      )
+
+      # user defined working times (wday 0 = sunday)
+      user_capacities = [0.0, 8.0, 8.0, 8.0, 8.0, 8.0, 0.0] # FIXME: customize per user
+
+      # init days
+      workload_days = []
+      date = self.date_from
+      while date <= self.date_to
+        coords = coordinates(date, date, nil, options[:zoom])
+        workload_days << {:html_coords => coords, :workload => 0, :user_capacity => user_capacities[date.wday]}
+        date += 1
+      end
+
+      # apply user issues
+      issues.each do |issue|
+        # skip parent issues
+        next unless issue.leaf?
+
+        from_date = issue.start_date
+        if from_date < self.date_from
+          from_date = self.date_from
+        end
+
+        to_date = issue.due_date
+        if to_date > self.date_to
+          to_date = self.date_to
+        end
+
+        issue_remaining_hours = issue.estimated_hours - issue.spent_hours
+
+        # split issue workload per day according to user capacity distribution
+        total_user_capacity = 0
+        date = issue.start_date
+        while date <= issue.due_date
+          total_user_capacity += user_capacities[date.wday]
+          date += 1
+        end
+
+        date = from_date
+        while date <= to_date
+          index = date - self.date_from
+          workload_days[index][:workload] += user_capacities[date.wday] / total_user_capacity * issue_remaining_hours
+          date += 1
+        end
+      end
+
+      workload_days.each do |workload|
+        # TODO: calculate value for display from workload
+        # TODO: select value for display, default 'free capacity'
+
+        # TODO: skip free days?
+        next if workload[:user_capacity] == 0
+
+        # DEBUG: free capacity
+        value = 100
+        if workload[:workload] != 0 && workload[:user_capacity] != 0
+          value = 100 - workload[:workload] / workload[:user_capacity] * 100
+        end
+
+        html_workload(options, workload[:html_coords], value)
+      end
     end
 
     def render_project(project, options={})
@@ -714,6 +811,20 @@ module Workload
       params[:image].stroke('transparent')
       params[:image].stroke_width(1)
       params[:image].text(params[:indent], params[:top] + 2, subject)
+    end
+
+    def html_workload(params, coords, value)
+      output = ''
+
+      # bars
+      if coords[:bar_start] && coords[:bar_end]
+        # calculate style bin
+        bin = (value/25).floor * 25
+        output << "<div style='top:#{ params[:top] }px;left:#{ coords[:bar_start] }px;width:#{ coords[:bar_end] - coords[:bar_start] - 2}px;' class='workload workload_#{bin}'>&nbsp;</div>"
+      end
+
+      @lines << output
+      output
     end
 
     def html_task(params, coords, options={})

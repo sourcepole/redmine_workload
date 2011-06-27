@@ -13,15 +13,13 @@ class WorkloadController < ApplicationController
   include Workload
 
   def show
-    @project = Project.find(params[:project_id])
-
     @workload = Workload::Workload.new(params)
     @workload.project = @project
     retrieve_query
     @query.group_by = nil
     @workload.query = @query if @query.valid?
 
-    basename = (@project ? "#{@project.identifier}-" : '') + 'workload'
+    basename = 'workload'
 
     respond_to do |format|
       format.html { render :action => "show", :layout => !request.xhr? }
