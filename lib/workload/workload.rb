@@ -19,7 +19,6 @@ module Workload
 
     attr_reader :year_from, :month_from, :date_from, :date_to, :zoom, :months, :truncated, :max_rows
     attr_accessor :query
-    attr_accessor :project
     attr_accessor :view
 
     def initialize(options={})
@@ -66,7 +65,7 @@ module Workload
     end
 
     def common_params
-      { :controller => 'workload', :action => 'show', :project_id => @project }
+      { :controller => 'workload', :action => 'show' }
     end
 
     def params
@@ -85,19 +84,8 @@ module Workload
     def number_of_rows
       return @number_of_rows if @number_of_rows
 
-      rows = projects.inject(0) {|total, p| total += number_of_rows_on_project(p)}
+      rows = users.count
       rows > @max_rows ? @max_rows : rows
-    end
-
-    # Returns the number of rows that will be used to list a project on
-    # the workload chart.  This will recurse for each subproject.
-    def number_of_rows_on_project(project)
-      return 0 unless projects.include?(project)
-
-      count = 1
-      count += project_issues(project).size
-      count += project_versions(project).size
-      count
     end
 
     # Renders the subjects of the workload chart, the left side.
@@ -112,46 +100,8 @@ module Workload
       @lines
     end
 
-    # Returns issues that will be rendered
-    def issues
-      @issues ||= @query.issues(
-        :include => [:assigned_to, :tracker, :priority, :category, :fixed_version],
-        :order => "#{Project.table_name}.lft ASC, #{Issue.table_name}.id ASC",
-        :limit => @max_rows
-      )
-    end
-
-    # Return all the project nodes that will be displayed
-    def projects
-      return @projects if @projects
-
-      ids = issues.collect(&:project).uniq.collect(&:id)
-      if ids.any?
-        # All issues projects and their visible ancestors
-        @projects = Project.visible.all(
-          :joins => "LEFT JOIN #{Project.table_name} child ON #{Project.table_name}.lft <= child.lft AND #{Project.table_name}.rgt >= child.rgt",
-          :conditions => ["child.id IN (?)", ids],
-          :order => "#{Project.table_name}.lft ASC"
-        ).uniq
-      else
-        @projects = []
-      end
-    end
-
-    # Returns the issues that belong to +project+
-    def project_issues(project)
-      @issues_by_project ||= issues.group_by(&:project)
-      @issues_by_project[project] || []
-    end
-
-    # Returns the distinct versions of the issues that belong to +project+
-    def project_versions(project)
-      project_issues(project).collect(&:fixed_version).compact.uniq
-    end
-
-    # Returns the issues that belong to +project+ and are assigned to +version+
-    def version_issues(project, version)
-      project_issues(project).select {|issue| issue.fixed_version == version}
+    def users
+      User.active.all(:order => "lastname")
     end
 
     def render(options={})
@@ -163,7 +113,7 @@ module Workload
       @number_of_rows = 0
 
       level = 0
-      User.active.all(:order => "lastname").each do |user|
+      users.each do |user|
         options[:indent] = indent + level * options[:indent_increment]
         render_user(user, options)
         break if abort?
@@ -301,202 +251,10 @@ module Workload
       end
     end
 
-    def render_project(project, options={})
-      subject_for_project(project, options) unless options[:only] == :lines
-      line_for_project(project, options) unless options[:only] == :subjects
-
-      options[:top] += options[:top_increment]
-      options[:indent] += options[:indent_increment]
-      @number_of_rows += 1
-      return if abort?
-
-      issues = project_issues(project).select {|i| i.fixed_version.nil?}
-      sort_issues!(issues)
-      if issues
-        render_issues(issues, options)
-        return if abort?
-      end
-
-      versions = project_versions(project)
-      versions.each do |version|
-        render_version(project, version, options)
-      end
-
-      # Remove indent to hit the next sibling
-      options[:indent] -= options[:indent_increment]
-    end
-
-    def render_issues(issues, options={})
-      @issue_ancestors = []
-
-      issues.each do |i|
-        subject_for_issue(i, options) unless options[:only] == :lines
-        line_for_issue(i, options) unless options[:only] == :subjects
-
-        options[:top] += options[:top_increment]
-        @number_of_rows += 1
-        break if abort?
-      end
-
-      options[:indent] -= (options[:indent_increment] * @issue_ancestors.size)
-    end
-
-    def render_version(project, version, options={})
-      # Version header
-      subject_for_version(version, options) unless options[:only] == :lines
-      line_for_version(version, options) unless options[:only] == :subjects
-
-      options[:top] += options[:top_increment]
-      @number_of_rows += 1
-      return if abort?
-
-      issues = version_issues(project, version)
-      if issues
-        sort_issues!(issues)
-        # Indent issues
-        options[:indent] += options[:indent_increment]
-        render_issues(issues, options)
-        options[:indent] -= options[:indent_increment]
-      end
-    end
-
     def render_end(options={})
       case options[:format]
       when :pdf
         options[:pdf].Line(15, options[:top], PDF::TotalWidth, options[:top])
-      end
-    end
-
-    def subject_for_project(project, options)
-      case options[:format]
-      when :html
-        subject = "<span class='icon icon-projects #{project.overdue? ? 'project-overdue' : ''}'>"
-        subject << view.link_to_project(project)
-        subject << '</span>'
-        html_subject(options, subject, :css => "project-name")
-      when :image
-        image_subject(options, project.name)
-      when :pdf
-        pdf_new_page?(options)
-        pdf_subject(options, project.name)
-      end
-    end
-
-    def line_for_project(project, options)
-      # Skip versions that don't have a start_date or due date
-      if project.is_a?(Project) && project.start_date && project.due_date
-        options[:zoom] ||= 1
-        options[:g_width] ||= (self.date_to - self.date_from + 1) * options[:zoom]
-
-        coords = coordinates(project.start_date, project.due_date, nil, options[:zoom])
-        label = h(project)
-
-        case options[:format]
-        when :html
-          html_task(options, coords, :css => "project task", :label => label, :markers => true)
-        when :image
-          image_task(options, coords, :label => label, :markers => true, :height => 3)
-        when :pdf
-          pdf_task(options, coords, :label => label, :markers => true, :height => 0.8)
-        end
-      else
-        ActiveRecord::Base.logger.debug "Workload#line_for_project was not given a project with a start_date"
-        ''
-      end
-    end
-
-    def subject_for_version(version, options)
-      case options[:format]
-      when :html
-        subject = "<span class='icon icon-package #{version.behind_schedule? ? 'version-behind-schedule' : ''} #{version.overdue? ? 'version-overdue' : ''}'>"
-        subject << view.link_to_version(version)
-        subject << '</span>'
-        html_subject(options, subject, :css => "version-name")
-      when :image
-        image_subject(options, version.to_s_with_project)
-      when :pdf
-        pdf_new_page?(options)
-        pdf_subject(options, version.to_s_with_project)
-      end
-    end
-
-    def line_for_version(version, options)
-      # Skip versions that don't have a start_date
-      if version.is_a?(Version) && version.start_date && version.due_date
-        options[:zoom] ||= 1
-        options[:g_width] ||= (self.date_to - self.date_from + 1) * options[:zoom]
-
-        coords = coordinates(version.start_date, version.due_date, version.completed_pourcent, options[:zoom])
-        label = "#{h version } #{h version.completed_pourcent.to_i.to_s}%"
-        label = h("#{version.project} -") + label unless @project && @project == version.project
-
-        case options[:format]
-        when :html
-          html_task(options, coords, :css => "version task", :label => label, :markers => true)
-        when :image
-          image_task(options, coords, :label => label, :markers => true, :height => 3)
-        when :pdf
-          pdf_task(options, coords, :label => label, :markers => true, :height => 0.8)
-        end
-      else
-        ActiveRecord::Base.logger.debug "Workload#line_for_version was not given a version with a start_date"
-        ''
-      end
-    end
-
-    def subject_for_issue(issue, options)
-      while @issue_ancestors.any? && !issue.is_descendant_of?(@issue_ancestors.last)
-        @issue_ancestors.pop
-        options[:indent] -= options[:indent_increment]
-      end
-
-      output = case options[:format]
-      when :html
-        css_classes = ''
-        css_classes << ' issue-overdue' if issue.overdue?
-        css_classes << ' issue-behind-schedule' if issue.behind_schedule?
-        css_classes << ' icon icon-issue' unless Setting.gravatar_enabled? && issue.assigned_to
-
-        subject = "<span class='#{css_classes}'>"
-        if issue.assigned_to.present?
-          assigned_string = l(:field_assigned_to) + ": " + issue.assigned_to.name
-          subject << view.avatar(issue.assigned_to, :class => 'gravatar icon-gravatar', :size => 10, :title => assigned_string).to_s
-        end
-        subject << view.link_to_issue(issue)
-        subject << '</span>'
-        html_subject(options, subject, :css => "issue-subject", :title => issue.subject) + "\n"
-      when :image
-        image_subject(options, issue.subject)
-      when :pdf
-        pdf_new_page?(options)
-        pdf_subject(options, issue.subject)
-      end
-
-      unless issue.leaf?
-        @issue_ancestors << issue
-        options[:indent] += options[:indent_increment]
-      end
-
-      output
-    end
-
-    def line_for_issue(issue, options)
-      # Skip issues that don't have a due_before (due_date or version's due_date)
-      if issue.is_a?(Issue) && issue.due_before
-        coords = coordinates(issue.start_date, issue.due_before, issue.done_ratio, options[:zoom])
-        label = "#{ issue.status.name } #{ issue.done_ratio }%"
-
-        case options[:format]
-        when :html
-          html_task(options, coords, :css => "task " + (issue.leaf? ? 'leaf' : 'parent'), :label => label, :issue => issue, :markers => !issue.leaf?)
-        when :image
-          image_task(options, coords, :label => label)
-        when :pdf
-          pdf_task(options, coords, :label => label)
-      end
-      else
-        ActiveRecord::Base.logger.debug "Workload#line_for_issue was not given an issue with a due_before"
-        ''
       end
     end
 
@@ -618,13 +376,13 @@ module Workload
 
     def to_pdf
       pdf = ::Redmine::Export::PDF::ITCPDF.new(current_language)
-      pdf.SetTitle("#{l(:label_workload)} #{project}")
+      pdf.SetTitle("#{l(:label_workload)}")
       pdf.alias_nb_pages
       pdf.footer_date = format_date(Date.today)
       pdf.AddPage("L")
       pdf.SetFontStyle('B',12)
       pdf.SetX(15)
-      pdf.RDMCell(PDF::LeftPaneWidth, 20, project.to_s)
+      pdf.RDMCell(PDF::LeftPaneWidth, 20, "#{l(:label_workload)}")
       pdf.Ln
       pdf.SetFontStyle('B',9)
 
@@ -776,28 +534,6 @@ module Workload
         coords[key] = (coords[key] * zoom)
       end
       coords
-    end
-
-    # Sorts a collection of issues by start_date, due_date, id for workload rendering
-    def sort_issues!(issues)
-      issues.sort! { |a, b| workload_issue_compare(a, b, issues) }
-    end
-
-    # TODO: top level issues should be sorted by start date
-    def workload_issue_compare(x, y, issues)
-      if x.root_id == y.root_id
-        x.lft <=> y.lft
-      else
-        x.root_id <=> y.root_id
-      end
-    end
-
-    def current_limit
-      if @max_rows
-        @max_rows - @number_of_rows
-      else
-        nil
-      end
     end
 
     def abort?
@@ -999,90 +735,6 @@ module Workload
       end
       @lines << output
       output
-    end
-
-    def pdf_task(params, coords, options={})
-      height = options[:height] || 2
-
-      # Renders the task bar, with progress and late
-      if coords[:bar_start] && coords[:bar_end]
-        params[:pdf].SetY(params[:top]+1.5)
-        params[:pdf].SetX(params[:subject_width] + coords[:bar_start])
-        params[:pdf].SetFillColor(200,200,200)
-        params[:pdf].RDMCell(coords[:bar_end] - coords[:bar_start], height, "", 0, 0, "", 1)
-
-        if coords[:bar_late_end]
-          params[:pdf].SetY(params[:top]+1.5)
-          params[:pdf].SetX(params[:subject_width] + coords[:bar_start])
-          params[:pdf].SetFillColor(255,100,100)
-          params[:pdf].RDMCell(coords[:bar_late_end] - coords[:bar_start], height, "", 0, 0, "", 1)
-        end
-        if coords[:bar_progress_end]
-          params[:pdf].SetY(params[:top]+1.5)
-          params[:pdf].SetX(params[:subject_width] + coords[:bar_start])
-          params[:pdf].SetFillColor(90,200,90)
-          params[:pdf].RDMCell(coords[:bar_progress_end] - coords[:bar_start], height, "", 0, 0, "", 1)
-        end
-      end
-      # Renders the markers
-      if options[:markers]
-        if coords[:start]
-          params[:pdf].SetY(params[:top] + 1)
-          params[:pdf].SetX(params[:subject_width] + coords[:start] - 1)
-          params[:pdf].SetFillColor(50,50,200)
-          params[:pdf].RDMCell(2, 2, "", 0, 0, "", 1)
-        end
-        if coords[:end]
-          params[:pdf].SetY(params[:top] + 1)
-          params[:pdf].SetX(params[:subject_width] + coords[:end] - 1)
-          params[:pdf].SetFillColor(50,50,200)
-          params[:pdf].RDMCell(2, 2, "", 0, 0, "", 1)
-        end
-      end
-      # Renders the label on the right
-      if options[:label]
-        params[:pdf].SetX(params[:subject_width] + (coords[:bar_end] || 0) + 5)
-        params[:pdf].RDMCell(30, 2, options[:label])
-      end
-    end
-
-    def image_task(params, coords, options={})
-      height = options[:height] || 6
-
-      # Renders the task bar, with progress and late
-      if coords[:bar_start] && coords[:bar_end]
-        params[:image].fill('#aaa')
-        params[:image].rectangle(params[:subject_width] + coords[:bar_start], params[:top], params[:subject_width] + coords[:bar_end], params[:top] - height)
-
-        if coords[:bar_late_end]
-          params[:image].fill('#f66')
-          params[:image].rectangle(params[:subject_width] + coords[:bar_start], params[:top], params[:subject_width] + coords[:bar_late_end], params[:top] - height)
-        end
-        if coords[:bar_progress_end]
-          params[:image].fill('#00c600')
-          params[:image].rectangle(params[:subject_width] + coords[:bar_start], params[:top], params[:subject_width] + coords[:bar_progress_end], params[:top] - height)
-        end
-      end
-      # Renders the markers
-      if options[:markers]
-        if coords[:start]
-          x = params[:subject_width] + coords[:start]
-          y = params[:top] - height / 2
-          params[:image].fill('blue')
-          params[:image].polygon(x-4, y, x, y-4, x+4, y, x, y+4)
-        end
-        if coords[:end]
-          x = params[:subject_width] + coords[:end] + params[:zoom]
-          y = params[:top] - height / 2
-          params[:image].fill('blue')
-          params[:image].polygon(x-4, y, x, y-4, x+4, y, x, y+4)
-        end
-      end
-      # Renders the label on the right
-      if options[:label]
-        params[:image].fill('black')
-        params[:image].text(params[:subject_width] + (coords[:bar_end] || 0) + 5,params[:top] + 1, options[:label])
-      end
     end
   end
 end

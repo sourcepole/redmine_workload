@@ -14,7 +14,6 @@ class WorkloadController < ApplicationController
 
   def show
     @workload = Workload::Workload.new(params)
-    @workload.project = @project
     retrieve_query
     @query.group_by = nil
     @workload.query = @query if @query.valid?
