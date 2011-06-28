@@ -33,3 +33,21 @@ div.workload {
   background: #00FF00;
   border: 1px solid #00A000;
 }
+
+.workload_empty {
+  background: #FF0000 url(/plugin_assets/redmine_workload/images/overflow.png);
+  border: 1px solid #000000;
+}
+
+.workload_full {
+  background: #00FF00;
+  border: 1px solid #000000;
+}
+
+.workload.workload_overdue {
+  background-image: url(/plugin_assets/redmine_workload/images/issue_overdue.png);
+  background-repeat: no-repeat;
+  border: 0;
+  margin-left: -4px;
+  margin-top: 12px;
+}

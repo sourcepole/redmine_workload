@@ -202,7 +202,6 @@ module Workload
     end
 
     def user_workload(user, options={})
-      # TODO: apply query filter to issues
       # TODO: filter issues by visible date range, closed
       issues = @query.issues(
         :conditions => ["assigned_to_id=? AND due_date IS NOT NULL AND estimated_hours IS NOT NULL", user.id],
@@ -217,7 +216,7 @@ module Workload
       date = self.date_from
       while date <= self.date_to
         coords = coordinates(date, date, nil, options[:zoom])
-        workload_days << {:html_coords => coords, :workload => 0, :user_capacity => user_capacities[date.wday]}
+        workload_days << {:html_coords => coords, :workload => 0, :user_capacity => user_capacities[date.wday], :date => date}
         date += 1
       end
 
@@ -226,32 +225,7 @@ module Workload
         # skip parent issues
         next unless issue.leaf?
 
-        from_date = issue.start_date
-        if from_date < self.date_from
-          from_date = self.date_from
-        end
-
-        to_date = issue.due_date
-        if to_date > self.date_to
-          to_date = self.date_to
-        end
-
-        issue_remaining_hours = issue.estimated_hours - issue.spent_hours
-
-        # split issue workload per day according to user capacity distribution
-        total_user_capacity = 0
-        date = issue.start_date
-        while date <= issue.due_date
-          total_user_capacity += user_capacities[date.wday]
-          date += 1
-        end
-
-        date = from_date
-        while date <= to_date
-          index = date - self.date_from
-          workload_days[index][:workload] += user_capacities[date.wday] / total_user_capacity * issue_remaining_hours
-          date += 1
-        end
+        apply_issue_workload(issue, workload_days, Date.today)
       end
 
       workload_days.each do |workload|
@@ -259,15 +233,64 @@ module Workload
         # TODO: select value for display, default 'free capacity'
 
         # TODO: skip free days?
-        next if workload[:user_capacity] == 0
+        next if workload[:user_capacity] == 0 || workload[:date] < Date.today
 
         # DEBUG: free capacity
         value = 100
         if workload[:workload] != 0 && workload[:user_capacity] != 0
           value = 100 - workload[:workload] / workload[:user_capacity] * 100
         end
+        workload[:value] = value
 
-        html_workload(options, workload[:html_coords], value)
+        html_workload(options, workload)
+      end
+    end
+
+    # Calculate workload distribution of issue in remaining duration from workload_start_date
+    def apply_issue_workload(issue, workload_days, workload_start_date)
+      # workload days range
+      workload_days_date_from = workload_days.first[:date]
+      workload_days_date_to = workload_days.last[:date]
+
+      # clamp dates
+      from_date = issue.start_date
+      if from_date < workload_days_date_from
+        from_date = workload_days_date_from
+      end
+      if from_date < workload_start_date
+        from_date = workload_start_date
+      end
+
+      to_date = issue.due_date
+      if to_date > workload_days_date_to
+        to_date = workload_days_date_to
+      end
+
+      # get total user capacity in remaining duration
+      total_user_capacity = 0
+      date = from_date
+      while date <= issue.due_date
+        index = date - workload_days_date_from
+        total_user_capacity += workload_days[index][:user_capacity]
+        date += 1
+      end
+
+      # apply issue workloads
+      issue_remaining_hours = issue.estimated_hours - issue.spent_hours
+      if issue.due_date < workload_start_date
+        # issue is overdue, add to first day
+        # TODO: overdue marker?
+        index = from_date - workload_days_date_from
+        workload_days[index][:workload] += issue_remaining_hours
+        workload_days[index][:overdue] = true
+      else
+        # split issue workload per day according to user capacity distribution
+        date = from_date
+        while date <= to_date
+          index = date - workload_days_date_from
+          workload_days[index][:workload] += workload_days[index][:user_capacity] / total_user_capacity * issue_remaining_hours
+          date += 1
+        end
       end
     end
 
@@ -813,14 +836,37 @@ module Workload
       params[:image].text(params[:indent], params[:top] + 2, subject)
     end
 
-    def html_workload(params, coords, value)
+    def html_workload(params, workload)
       output = ''
 
-      # bars
+      coords = workload[:html_coords]
+      value = workload[:value]
+
       if coords[:bar_start] && coords[:bar_end]
         # calculate style bin
         bin = (value/25).floor * 25
-        output << "<div style='top:#{ params[:top] }px;left:#{ coords[:bar_start] }px;width:#{ coords[:bar_end] - coords[:bar_start] - 2}px;' class='workload workload_#{bin}'>&nbsp;</div>"
+        workload_class = "workload_#{bin}"
+        if bin > 100
+          workload_class = "workload_full"
+        elsif bin < 0
+          workload_class = "workload_empty"
+        end
+        
+        # bar
+        output << "<div style='top:#{ params[:top] }px;left:#{ coords[:bar_start] }px;width:#{ coords[:bar_end] - coords[:bar_start] - 2}px;' class='workload #{workload_class}'>&nbsp;</div>"
+
+        # tooltip
+        if params[:zoom] >= 4
+          output << "<div class='tooltip' style='position: absolute;top:#{ params[:top] }px;left:#{ coords[:bar_start] }px;width:#{ coords[:bar_end] - coords[:bar_start] }px;height:12px;'>"
+          output << '<span class="tip">'
+          output << view.render_workload_tooltip(workload)
+          output << "</span></div>"
+        end
+      end
+
+      # overdue
+      if workload[:overdue] && coords[:start]
+        output << "<div style='top:#{ params[:top] }px;left:#{ coords[:start] }px;width:15px;' class='workload workload_overdue'>&nbsp;</div>"
       end
 
       @lines << output

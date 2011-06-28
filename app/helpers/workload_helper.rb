@@ -22,4 +22,13 @@ module WorkloadHelper
     end
   end
 
+  def render_workload_tooltip(workload)
+    # TODO: translations
+    # TODO: links to issues
+    "<strong>Date</strong>: #{workload[:date]}<br/>" +
+    "<strong>Workload</strong>: #{workload[:workload]}<br/>" +
+    "<strong>User capacity</strong>: #{workload[:user_capacity]}<br/>" +
+    "<strong>Value</strong>: #{workload[:value]}<br/>"
+  end
+
 end
