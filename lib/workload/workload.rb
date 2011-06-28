@@ -184,24 +184,24 @@ module Workload
     end
 
     def subject_for_user(user, options={})
-      # TODO: formats
-
-      subject = "<span class='icon icon-user'>"
-      subject << view.link_to_user(user)
-      subject << '</span>'
-      html_subject(options, subject, :css => "project-name")
+      case options[:format]
+      when :html
+        subject = "<span class='icon icon-user'>"
+        subject << view.link_to_user(user)
+        subject << '</span>'
+        html_subject(options, subject, :css => "project-name")
+      when :image
+        image_subject(options, user.name)
+      when :pdf
+        pdf_new_page?(options)
+        pdf_subject(options, user.name)
+      end
     end
 
     def line_for_user(user, options={})
-      # TODO: formats
-
       options[:zoom] ||= 1
       options[:g_width] ||= (self.date_to - self.date_from + 1) * options[:zoom]
 
-      user_workload(user, options)
-    end
-
-    def user_workload(user, options={})
       # TODO: filter issues by visible date range, closed
       issues = @query.issues(
         :conditions => ["assigned_to_id=? AND due_date IS NOT NULL AND estimated_hours IS NOT NULL", user.id],
@@ -242,7 +242,14 @@ module Workload
         end
         workload[:value] = value
 
-        html_workload(options, workload)
+        case options[:format]
+        when :html
+          html_workload(options, workload)
+        when :image
+          image_workload(options, workload)
+        when :pdf
+          pdf_workload(options, workload)
+        end
       end
     end
 
@@ -766,7 +773,7 @@ module Workload
 
       # Transforms dates into pixels witdh
       coords.keys.each do |key|
-        coords[key] = (coords[key] * zoom).floor
+        coords[key] = (coords[key] * zoom)
       end
       coords
     end
@@ -871,6 +878,88 @@ module Workload
 
       @lines << output
       output
+    end
+
+    def image_workload(params, workload)
+      coords = workload[:html_coords]
+      value = workload[:value]
+      height = 6 # params[:height] || 6 # TODO: const?
+
+      if coords[:bar_start] && coords[:bar_end]
+        colors = ['#FF0000', '#FFC000', '#FFFF00', '#C0FF00', '#00FF00', '#00FF00', '#FF0000']
+        bin = (value/25).floor
+        if bin > 4
+          color = colors[5]
+        elsif bin < 0
+          color = colors[6]
+        else
+          color = colors[bin]
+        end
+
+        # bar
+        params[:image].fill(color)
+        params[:image].stroke("#000000")
+        params[:image].rectangle(params[:subject_width] + coords[:bar_start], params[:top], params[:subject_width] + coords[:bar_end], params[:top] - height)
+
+        # mark overflow
+        if bin < 0
+          x = params[:subject_width] + coords[:bar_start]
+          y = params[:top]
+          params[:image].line(x, y, x + coords[:bar_end] - coords[:bar_start], y - height)
+        end
+      end
+
+      # overdue
+      if workload[:overdue] && coords[:start]
+        x = params[:subject_width] + coords[:start]
+        y = params[:top] + height
+        params[:image].fill('#FF0000')
+        params[:image].stroke('none')
+        params[:image].polygon(x-4, y, x, y-4, x+4, y)
+      end
+    end
+
+    def pdf_workload(params, workload)
+      coords = workload[:html_coords]
+      value = workload[:value]
+      height = 2
+
+      if coords[:bar_start] && coords[:bar_end]
+        colors = [[255, 0, 0], [255, 192, 0], [255, 255, 0], [192, 255, 0], [0, 255, 0], [0, 255, 0], [255, 0, 0]]
+        bin = (value/25).floor
+        if bin > 4
+          color = colors[5]
+        elsif bin < 0
+          color = colors[6]
+        else
+          color = colors[bin]
+        end
+
+        # bar
+        params[:pdf].SetY(params[:top]+1.5)
+        params[:pdf].SetX(params[:subject_width] + coords[:bar_start])
+        params[:pdf].SetFillColor(color[0], color[1], color[2])
+        params[:pdf].SetDrawColor(0, 0, 0)
+        params[:pdf].RDMCell(coords[:bar_end] - coords[:bar_start], height, "", 1, 0, "", 1)
+
+        # mark overflow
+        if bin < 0
+          params[:pdf].SetY(params[:top]+1.5 + height / 2)
+          params[:pdf].SetX(params[:subject_width] + coords[:bar_start])
+          params[:pdf].SetFillColor(0, 0, 0)
+          params[:pdf].SetDrawColor(-1)
+          params[:pdf].RDMCell(coords[:bar_end] - coords[:bar_start], height / 2, "", 1, 0, "", 1)
+        end
+      end
+
+      # overdue
+      if workload[:overdue] && coords[:start]
+        params[:pdf].SetY(params[:top] + 1.5 + height)
+        params[:pdf].SetX(params[:subject_width] + coords[:bar_start])
+        params[:pdf].SetFillColor(255, 0, 0)
+        params[:pdf].SetDrawColor(-1)
+        params[:pdf].RDMCell(coords[:bar_end] - coords[:bar_start], height / 2, "", 1, 0, "", 1)
+      end
     end
 
     def html_task(params, coords, options={})
