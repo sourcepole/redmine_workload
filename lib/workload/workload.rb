@@ -20,6 +20,12 @@ module Workload
     attr_reader :year_from, :month_from, :date_from, :date_to, :zoom, :months, :truncated, :max_rows
     attr_accessor :query
     attr_accessor :view
+    attr_accessor :measure
+
+    MEASURE_PLANNED_CAPACITY = 1
+    MEASURE_FREE_CAPACITY = 2
+    MEASURE_WORKLOAD = 3
+    MEASURE_AVAILABILITY = 4
 
     def initialize(options={})
       options = options.dup
@@ -62,6 +68,12 @@ module Workload
       else
         @max_rows = Setting.gantt_items_limit.blank? ? nil : Setting.gantt_items_limit.to_i
       end
+
+      if options[:measure]
+        @measure = options[:measure].to_i
+      else
+        @measure = MEASURE_FREE_CAPACITY
+      end
     end
 
     def common_params
@@ -78,6 +90,28 @@ module Workload
 
     def params_next
       common_params.merge({:year => (date_from >> months).year, :month => (date_from >> months).month, :zoom => zoom, :months => months })
+    end
+
+    def measures_for_select
+      [
+        [l(:measure_planned_capacity), MEASURE_PLANNED_CAPACITY],
+        [l(:measure_free_capacity), MEASURE_FREE_CAPACITY],
+        [l(:measure_workload), MEASURE_WORKLOAD],
+        [l(:measure_availability), MEASURE_AVAILABILITY]
+      ]
+    end
+
+    def current_measure_text
+      case @measure
+      when MEASURE_PLANNED_CAPACITY
+        l(:measure_planned_capacity)
+      when MEASURE_FREE_CAPACITY
+        l(:measure_free_capacity)
+      when MEASURE_WORKLOAD
+        l(:measure_workload)
+      when MEASURE_AVAILABILITY
+        l(:measure_availability)
+      end
     end
 
     # Returns the number of rows that will be rendered on the workload chart
@@ -166,7 +200,7 @@ module Workload
       date = self.date_from
       while date <= self.date_to
         coords = coordinates(date, date, nil, options[:zoom])
-        workload_days << {:html_coords => coords, :workload => 0, :user_capacity => user_capacities[date.wday], :date => date}
+        workload_days << {:html_coords => coords, :issues_effort => 0, :user_capacity => user_capacities[date.wday], :date => date}
         date += 1
       end
 
@@ -175,22 +209,32 @@ module Workload
         # skip parent issues
         next unless issue.leaf?
 
-        apply_issue_workload(issue, workload_days, Date.today)
+        apply_issue_effort(issue, workload_days, Date.today)
       end
 
       workload_days.each do |workload|
-        # TODO: calculate value for display from workload
-        # TODO: select value for display, default 'free capacity'
-
         # TODO: skip free days?
         next if workload[:user_capacity] == 0 || workload[:date] < Date.today
 
-        # DEBUG: free capacity
-        value = 100
-        if workload[:workload] != 0 && workload[:user_capacity] != 0
-          value = 100 - workload[:workload] / workload[:user_capacity] * 100
+        calculate_measures(workload)
+
+        # select measure for display
+        case @measure
+        when MEASURE_PLANNED_CAPACITY
+#          workload[:value] = workload[:measure][:planned_capacity] # FIXME: style for absolute values, show relative value for now
+          workload[:value] = workload[:measure][:workload]
+        when MEASURE_FREE_CAPACITY
+#          workload[:value] = workload[:measure][:free_capacity] # FIXME: style for absolute values, show relative value for now
+          workload[:value] = workload[:measure][:availability]
+        when MEASURE_WORKLOAD
+          workload[:value] = workload[:measure][:workload]
+        when MEASURE_AVAILABILITY
+          workload[:value] = workload[:measure][:availability]
+        else
+          workload[:value] = 0
         end
-        workload[:value] = value
+
+        # TODO: styles for absolute measure values
 
         case options[:format]
         when :html
@@ -203,8 +247,8 @@ module Workload
       end
     end
 
-    # Calculate workload distribution of issue in remaining duration from workload_start_date
-    def apply_issue_workload(issue, workload_days, workload_start_date)
+    # Calculate effort distribution of issue in remaining duration from workload_start_date
+    def apply_issue_effort(issue, workload_days, workload_start_date)
       # workload days range
       workload_days_date_from = workload_days.first[:date]
       workload_days_date_to = workload_days.last[:date]
@@ -232,22 +276,38 @@ module Workload
         date += 1
       end
 
-      # apply issue workloads
+      # apply issue effort
       issue_remaining_hours = issue.estimated_hours - issue.spent_hours
       if issue.due_date < workload_start_date
         # issue is overdue, add to first day
         # TODO: overdue marker?
         index = from_date - workload_days_date_from
-        workload_days[index][:workload] += issue_remaining_hours
+        workload_days[index][:issues_effort] += issue_remaining_hours
         workload_days[index][:overdue] = true
       else
-        # split issue workload per day according to user capacity distribution
+        # split issue effort per day according to user capacity distribution
         date = from_date
         while date <= to_date
           index = date - workload_days_date_from
-          workload_days[index][:workload] += workload_days[index][:user_capacity] / total_user_capacity * issue_remaining_hours
+          workload_days[index][:issues_effort] += workload_days[index][:user_capacity] / total_user_capacity * issue_remaining_hours
           date += 1
         end
+      end
+    end
+
+    def calculate_measures(workload)
+      workload[:measure] = {}
+      workload[:measure][:planned_capacity] = workload[:issues_effort]
+      workload[:measure][:free_capacity] = workload[:user_capacity] - workload[:issues_effort]
+      if workload[:user_capacity] != 0
+        workload[:measure][:workload] = workload[:issues_effort] / workload[:user_capacity] * 100
+      else
+        workload[:measure][:workload] = 0
+      end
+      if workload[:user_capacity] != 0
+        workload[:measure][:availability] = 100 - workload[:measure][:workload]
+      else
+        workload[:measure][:availability] = 0
       end
     end
 
@@ -376,13 +436,13 @@ module Workload
 
     def to_pdf
       pdf = ::Redmine::Export::PDF::ITCPDF.new(current_language)
-      pdf.SetTitle("#{l(:label_workload)}")
+      pdf.SetTitle("#{l(:label_workload)} - #{current_measure_text}")
       pdf.alias_nb_pages
       pdf.footer_date = format_date(Date.today)
       pdf.AddPage("L")
       pdf.SetFontStyle('B',12)
       pdf.SetX(15)
-      pdf.RDMCell(PDF::LeftPaneWidth, 20, "#{l(:label_workload)}")
+      pdf.RDMCell(PDF::LeftPaneWidth, 20, "#{l(:label_workload)} - #{current_measure_text}")
       pdf.Ln
       pdf.SetFontStyle('B',9)
 

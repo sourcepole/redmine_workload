@@ -40,7 +40,7 @@ div.workload {
 }
 
 .workload_full {
-  background: #00FF00;
+  background: #00FF00 url(/plugin_assets/redmine_workload/images/overflow.png);
   border: 1px solid #000000;
 }
 
