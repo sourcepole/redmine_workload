@@ -51,3 +51,7 @@ div.workload {
   margin-left: -4px;
   margin-top: 12px;
 }
+
+.workload.tip ul {
+  margin: 0 0 0 -20px;
+}

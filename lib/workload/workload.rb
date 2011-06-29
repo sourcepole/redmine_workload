@@ -200,7 +200,7 @@ module Workload
       date = self.date_from
       while date <= self.date_to
         coords = coordinates(date, date, nil, options[:zoom])
-        workload_days << {:html_coords => coords, :issues_effort => 0, :user_capacity => user_capacities[date.wday], :date => date}
+        workload_days << {:html_coords => coords, :issues_effort => 0, :issues => [], :user_capacity => user_capacities[date.wday], :date => date}
         date += 1
       end
 
@@ -283,6 +283,7 @@ module Workload
         # TODO: overdue marker?
         index = from_date - workload_days_date_from
         workload_days[index][:issues_effort] += issue_remaining_hours
+        workload_days[index][:issues] << issue
         workload_days[index][:overdue] = true
       else
         # split issue effort per day according to user capacity distribution
@@ -290,6 +291,7 @@ module Workload
         while date <= to_date
           index = date - workload_days_date_from
           workload_days[index][:issues_effort] += workload_days[index][:user_capacity] / total_user_capacity * issue_remaining_hours
+          workload_days[index][:issues] << issue
           date += 1
         end
       end
@@ -660,8 +662,8 @@ module Workload
 
         # tooltip
         if params[:zoom] >= 4
-          output << "<div class='tooltip' style='position: absolute;top:#{ params[:top] }px;left:#{ coords[:bar_start] }px;width:#{ coords[:bar_end] - coords[:bar_start] }px;height:12px;'>"
-          output << '<span class="tip">'
+          output << "<div class='tooltip' style='position:absolute;top:#{ params[:top] }px;left:#{ coords[:bar_start] }px;width:#{ coords[:bar_end] - coords[:bar_start] }px;height:12px;'>"
+          output << "<span class='workload tip' style='left:0'>"
           output << view.render_workload_tooltip(workload)
           output << "</span></div>"
         end
@@ -756,45 +758,6 @@ module Workload
         params[:pdf].SetDrawColor(-1)
         params[:pdf].RDMCell(coords[:bar_end] - coords[:bar_start], height / 2, "", 1, 0, "", 1)
       end
-    end
-
-    def html_task(params, coords, options={})
-      output = ''
-      # Renders the task bar, with progress and late
-      if coords[:bar_start] && coords[:bar_end]
-        output << "<div style='top:#{ params[:top] }px;left:#{ coords[:bar_start] }px;width:#{ coords[:bar_end] - coords[:bar_start] - 2}px;' class='#{options[:css]} task_todo'>&nbsp;</div>"
-
-        if coords[:bar_late_end]
-          output << "<div style='top:#{ params[:top] }px;left:#{ coords[:bar_start] }px;width:#{ coords[:bar_late_end] - coords[:bar_start] - 2}px;' class='#{options[:css]} task_late'>&nbsp;</div>"
-        end
-        if coords[:bar_progress_end]
-          output << "<div style='top:#{ params[:top] }px;left:#{ coords[:bar_start] }px;width:#{ coords[:bar_progress_end] - coords[:bar_start] - 2}px;' class='#{options[:css]} task_done'>&nbsp;</div>"
-        end
-      end
-      # Renders the markers
-      if options[:markers]
-        if coords[:start]
-          output << "<div style='top:#{ params[:top] }px;left:#{ coords[:start] }px;width:15px;' class='#{options[:css]} marker starting'>&nbsp;</div>"
-        end
-        if coords[:end]
-          output << "<div style='top:#{ params[:top] }px;left:#{ coords[:end] + params[:zoom] }px;width:15px;' class='#{options[:css]} marker ending'>&nbsp;</div>"
-        end
-      end
-      # Renders the label on the right
-      if options[:label]
-        output << "<div style='top:#{ params[:top] }px;left:#{ (coords[:bar_end] || 0) + 8 }px;' class='#{options[:css]} label'>"
-        output << options[:label]
-        output << "</div>"
-      end
-      # Renders the tooltip
-      if options[:issue] && coords[:bar_start] && coords[:bar_end]
-        output << "<div class='tooltip' style='position: absolute;top:#{ params[:top] }px;left:#{ coords[:bar_start] }px;width:#{ coords[:bar_end] - coords[:bar_start] }px;height:12px;'>"
-        output << '<span class="tip">'
-        output << view.render_issue_tooltip(options[:issue])
-        output << "</span></div>"
-      end
-      @lines << output
-      output
     end
   end
 end
