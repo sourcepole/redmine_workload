@@ -186,11 +186,10 @@ module Workload
       options[:zoom] ||= 1
       options[:g_width] ||= (self.date_to - self.date_from + 1) * options[:zoom]
 
-      # TODO: filter issues by visible date range, closed
       issues = @query.issues(
         :conditions => ["assigned_to_id=? AND due_date IS NOT NULL AND estimated_hours IS NOT NULL", user.id],
         :order => "start_date"
-      )
+      ).reject { |issue| !issue.start_date.blank? && issue.start_date > self.date_to }
 
       # user defined working times (wday 0 = sunday)
       user_capacities = [0.0, 8.0, 8.0, 8.0, 8.0, 8.0, 0.0] # FIXME: customize per user
@@ -209,7 +208,7 @@ module Workload
         # skip parent issues
         next unless issue.leaf?
 
-        apply_issue_effort(issue, workload_days, Date.today)
+        apply_issue_effort(issue, workload_days, Date.today, user_capacities)
       end
 
       workload_days.each do |workload|
@@ -248,13 +247,13 @@ module Workload
     end
 
     # Calculate effort distribution of issue in remaining duration from workload_start_date
-    def apply_issue_effort(issue, workload_days, workload_start_date)
+    def apply_issue_effort(issue, workload_days, workload_start_date, user_capacities)
       # workload days range
       workload_days_date_from = workload_days.first[:date]
       workload_days_date_to = workload_days.last[:date]
 
       # clamp dates
-      from_date = issue.start_date
+      from_date = issue.start_date || workload_days_date_from
       if from_date < workload_days_date_from
         from_date = workload_days_date_from
       end
@@ -267,12 +266,13 @@ module Workload
         to_date = workload_days_date_to
       end
 
+      return if from_date > workload_days_date_to
+
       # get total user capacity in remaining duration
       total_user_capacity = 0
       date = from_date
       while date <= issue.due_date
-        index = date - workload_days_date_from
-        total_user_capacity += workload_days[index][:user_capacity]
+        total_user_capacity += user_capacities[date.wday]
         date += 1
       end
 
@@ -681,7 +681,7 @@ module Workload
     def image_workload(params, workload)
       coords = workload[:html_coords]
       value = workload[:value]
-      height = 6 # params[:height] || 6 # TODO: const?
+      height = 6
 
       if coords[:bar_start] && coords[:bar_end]
         colors = ['#FF0000', '#FFC000', '#FFFF00', '#C0FF00', '#00FF00', '#00FF00', '#FF0000']
