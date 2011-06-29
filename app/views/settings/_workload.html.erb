@@ -1,0 +1,4 @@
+<p>
+  <label><%= l(:default_measure) %></label>
+  <%= select_tag "settings[workload_measure]", options_for_select(Workload::Workload::measures_for_select, @settings['workload_measure']) %>
+</p>

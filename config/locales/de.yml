@@ -2,6 +2,7 @@ de:
   label_workload: Auslastung
   notice_workload_chart_truncated: Die Grafik ist unvollständig, da das Maximum der anzeigbaren Aufgaben überschritten wurde (%{max})
   user_capacity: Kapazität
+  default_measure: Standard Masszahl
   measure: Masszahl
   measure_planned_capacity: Verplante Kapazität
   measure_free_capacity: Freie Kapazität

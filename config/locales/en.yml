@@ -2,6 +2,7 @@ en:
   label_workload: Workload
   notice_workload_chart_truncated: "The chart was truncated because it exceeds the maximum number of items that can be displayed (%{max})"
   user_capacity: Capacity
+  default_measure: Default measure
   measure: Measure
   measure_planned_capacity: Planned capacity
   measure_free_capacity: Free capacity

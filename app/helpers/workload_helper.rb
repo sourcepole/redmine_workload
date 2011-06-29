@@ -23,7 +23,7 @@ module WorkloadHelper
   end
 
   def workload_value_select(workload)
-    content_tag('span', l(:measure) + ": " + content_tag('select', options_for_select(workload.measures_for_select, workload.measure), :name => "measure") )
+    content_tag('span', l(:measure) + ": " + content_tag('select', options_for_select(Workload::Workload::measures_for_select, workload.measure), :name => "measure") )
   end
 
   def render_workload_tooltip(workload)

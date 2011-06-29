@@ -72,7 +72,7 @@ module Workload
       if options[:measure]
         @measure = options[:measure].to_i
       else
-        @measure = MEASURE_FREE_CAPACITY
+        @measure = Setting.plugin_redmine_workload[:workload_measure].blank? ? MEASURE_FREE_CAPACITY : Setting.plugin_redmine_workload[:workload_measure].to_i
       end
     end
 
@@ -92,7 +92,7 @@ module Workload
       common_params.merge({:year => (date_from >> months).year, :month => (date_from >> months).month, :zoom => zoom, :months => months })
     end
 
-    def measures_for_select
+    def self.measures_for_select
       [
         [l(:measure_planned_capacity), MEASURE_PLANNED_CAPACITY],
         [l(:measure_free_capacity), MEASURE_FREE_CAPACITY],
