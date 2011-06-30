@@ -12,7 +12,6 @@ class WorkloadController < ApplicationController
   helper :sort
   include SortHelper
   include Redmine::Export::PDF
-  include Workload
 
   def show
     @workload = Workload::Workload.new(params)
