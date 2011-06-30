@@ -1,7 +1,7 @@
 class WorkloadController < ApplicationController
   unloadable
 
-  before_filter :require_login
+  before_filter :require_login, :find_optional_project
 
   rescue_from Query::StatementInvalid, :with => :query_statement_invalid
 
@@ -15,11 +15,12 @@ class WorkloadController < ApplicationController
 
   def show
     @workload = Workload::Workload.new(params)
+    @workload.project = @project
     retrieve_query
     @query.group_by = nil
     @workload.query = @query if @query.valid?
 
-    basename = 'workload'
+    basename = (@project ? "#{@project.identifier}-" : '') + 'workload'
 
     respond_to do |format|
       format.html { render :action => "show", :layout => !request.xhr? }

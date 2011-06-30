@@ -19,6 +19,7 @@ module Workload
 
     attr_reader :year_from, :month_from, :date_from, :date_to, :zoom, :months, :truncated, :max_rows
     attr_accessor :query
+    attr_accessor :project
     attr_accessor :view
     attr_accessor :measure
 
@@ -77,7 +78,7 @@ module Workload
     end
 
     def common_params
-      { :controller => 'workload', :action => 'show' }
+      { :controller => 'workload', :action => 'show', :project_id => @project }
     end
 
     def params
@@ -134,8 +135,13 @@ module Workload
       @lines
     end
 
+    # Returns all users assigned to rendered issues
     def users
-      User.active.all(:order => "lastname")
+      @query.issues(
+        :conditions => ["#{Issue.table_name}.assigned_to_id IS NOT NULL"],
+        :order => "#{Project.table_name}.lft ASC, #{Issue.table_name}.id ASC",
+        :limit => @max_rows
+      ).collect(&:assigned_to).uniq.sort{ |a,b| a.lastname <=> b.lastname }
     end
 
     def render(options={})
@@ -438,13 +444,13 @@ module Workload
 
     def to_pdf
       pdf = ::Redmine::Export::PDF::ITCPDF.new(current_language)
-      pdf.SetTitle("#{l(:label_workload)} - #{current_measure_text}")
+      pdf.SetTitle("#{l(:label_workload)} #{project} - #{current_measure_text}")
       pdf.alias_nb_pages
       pdf.footer_date = format_date(Date.today)
       pdf.AddPage("L")
       pdf.SetFontStyle('B',12)
       pdf.SetX(15)
-      pdf.RDMCell(PDF::LeftPaneWidth, 20, "#{l(:label_workload)} - #{current_measure_text}")
+      pdf.RDMCell(PDF::LeftPaneWidth, 20, "#{l(:label_workload)} #{project} - #{current_measure_text}")
       pdf.Ln
       pdf.SetFontStyle('B',9)
 

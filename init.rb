@@ -8,5 +8,6 @@ Redmine::Plugin.register :redmine_workload do
 
   settings :default => {'workload_measure' => Workload::Workload::MEASURE_FREE_CAPACITY}, :partial => 'settings/workload'
 
-  menu :account_menu, :workload, { :controller => 'workload', :action => 'show' }, :caption => :label_workload
+  permission :workload, {:workload => [:show]}, :public => true
+  menu :project_menu, :workload, { :controller => 'workload', :action => 'show' }, :caption => :label_workload, :after => :gantt, :param => :project_id
 end
