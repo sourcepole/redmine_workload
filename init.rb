@@ -1,5 +1,7 @@
 require 'redmine'
 
+require_dependency 'workload/hooks'
+
 Redmine::Plugin.register :redmine_workload do
   name 'Workload plugin'
   author 'Sourcepole'
