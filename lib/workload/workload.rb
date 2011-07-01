@@ -284,7 +284,7 @@ module Workload
 
       # apply issue effort
       issue_remaining_hours = issue.estimated_hours - issue.spent_hours
-      if issue.due_date < workload_start_date
+      if issue.due_date < workload_start_date && from_date == workload_start_date
         # issue is overdue, add to first day
         # TODO: overdue marker?
         index = from_date - workload_days_date_from
@@ -560,14 +560,14 @@ module Workload
       zoom ||= @zoom
 
       coords = {}
-      if start_date && end_date && start_date < self.date_to && end_date > self.date_from
-        if start_date > self.date_from
+      if start_date && end_date && start_date <= self.date_to && end_date >= self.date_from
+        if start_date >= self.date_from
           coords[:start] = start_date - self.date_from
           coords[:bar_start] = start_date - self.date_from
         else
           coords[:bar_start] = 0
         end
-        if end_date < self.date_to
+        if end_date <= self.date_to
           coords[:end] = end_date - self.date_from
           coords[:bar_end] = end_date - self.date_from + 1
         else
