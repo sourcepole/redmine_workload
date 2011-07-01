@@ -211,10 +211,7 @@ module Workload
 
       # apply user issues
       issues.each do |issue|
-        # skip parent issues
-        next unless issue.leaf?
-
-        apply_issue_effort(issue, workload_days, Date.today, user_capacities)
+        apply_issue_effort(issue, issues, workload_days, Date.today, user_capacities)
       end
 
       workload_days.each do |workload|
@@ -253,7 +250,7 @@ module Workload
     end
 
     # Calculate effort distribution of issue in remaining duration from workload_start_date
-    def apply_issue_effort(issue, workload_days, workload_start_date, user_capacities)
+    def apply_issue_effort(issue, issues, workload_days, workload_start_date, user_capacities)
       # workload days range
       workload_days_date_from = workload_days.first[:date]
       workload_days_date_to = workload_days.last[:date]
@@ -283,7 +280,9 @@ module Workload
       end
 
       # apply issue effort
-      issue_remaining_hours = issue.estimated_hours - issue.spent_hours
+      estimated_hours, spent_hours = remaining_hours_without_sub_issues(issue, issues)
+      issue_remaining_hours = estimated_hours - spent_hours
+
       if issue.due_date < workload_start_date && from_date == workload_start_date
         # issue is overdue, add to first day
         # TODO: overdue marker?
@@ -301,6 +300,22 @@ module Workload
           date += 1
         end
       end
+    end
+
+    # Get estimated and spent hours of +issue+ subtracting all descendant issues contained in +issues+
+    def remaining_hours_without_sub_issues(issue, issues)
+      estimated_hours = issue.estimated_hours
+      spent_hours = issue.spent_hours
+      unless issue.descendants.empty?
+        issue.descendants.each do |sub_issue|
+          if issues.include?(sub_issue)
+            sub_estimated_hours, sub_spent_hours = remaining_hours_without_sub_issues(sub_issue, issues)
+            estimated_hours -= sub_estimated_hours
+            spent_hours -= sub_spent_hours
+          end
+        end
+      end
+      return estimated_hours, spent_hours
     end
 
     def calculate_measures(workload)
