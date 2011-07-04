@@ -199,6 +199,9 @@ module Workload
         :order => "start_date"
       ).reject { |issue| !issue.start_date.blank? && issue.start_date > self.date_to }
 
+      # reset cached user_capacities
+      @user_capacities = nil
+
       # init days
       workload_days = []
       date = self.date_from
