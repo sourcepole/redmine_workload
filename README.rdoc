@@ -3,6 +3,9 @@
 A plugin for workload diagrams in Redmine
 
 == Features
+* graphical workload diagram per user based on estimated and spent ticket time
+* use Redmine issues filter
+* PDF and PNG export
 
 == Installation
 get Redmine 1.2-stable branch:
@@ -26,5 +29,16 @@ Run the unit tests:
  rake test:plugins:units
 
 == Configuration
+
+=== User capacities
+* add user capacity custom fields for each weekday
+  * Administration -> Custom fields -> Users -> New custom field
+  * Names for weekdays: workload_capacity_monday, workload_capacity_tuesday, workload_capacity_wednesday, workload_capacity_thursday, workload_capacity_friday, workload_capacity_saturday,   * Names: workload_capacity_monday, workload_capacity_tuesday, workload_capacity_wednesday, workload_capacity_thursday, workload_capacity_friday, workload_capacity_saturday,   * Names: workload_capacity_monday, workload_capacity_tuesday, workload_capacity_wednesday, workload_capacity_thursday, workload_capacity_friday, workload_capacity_saturday, workload_capacity_sunday
+  * Format: Float
+  * Default value: default user capacity in hours
+  * Required: check
+* set workload capacities for each user in Administration -> Users
+
+If the user capacity custom fields are empty or missing, a default value of 8 hours for workdays and 0 hours for the weekend is used.
 
 == Usage

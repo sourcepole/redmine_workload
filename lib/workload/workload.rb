@@ -197,8 +197,7 @@ module Workload
         :order => "start_date"
       ).reject { |issue| !issue.start_date.blank? && issue.start_date > self.date_to }
 
-      # user defined working times (wday 0 = sunday)
-      user_capacities = [0.0, 8.0, 8.0, 8.0, 8.0, 8.0, 0.0] # FIXME: customize per user
+      user_capacities = get_user_capacities(user)
 
       # init days
       workload_days = []
@@ -332,6 +331,25 @@ module Workload
       else
         workload[:measure][:availability] = 0
       end
+    end
+    
+    # User capacities from user custom fields
+    def get_user_capacities(user)
+      user_capacities = [0.0, 8.0, 8.0, 8.0, 8.0, 8.0, 0.0] # wday 0 = sunday
+
+      wday = 0
+      ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].each do |day|
+        custom_field = CustomField.find_by_name("workload_capacity_#{day}")
+        unless custom_field.nil?
+          user_capacity = CustomValue.find(:first, :conditions => ["custom_field_id=? AND customized_id=?", custom_field.id, user.id])
+          unless user_capacity.nil?
+            user_capacities[wday] = user_capacity.value.to_f
+          end
+        end
+        wday += 1
+      end
+      
+      user_capacities
     end
 
     def render_end(options={})
