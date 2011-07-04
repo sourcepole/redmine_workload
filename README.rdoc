@@ -41,4 +41,17 @@ Run the unit tests:
 
 If the user capacity custom fields are empty or missing, a default value of 8 hours for workdays and 0 hours for the weekend is used.
 
+=== Vacations
+* create vacation issue
+  * Subject: <vacation_subject>
+  * Assigned to: nobody
+* set vacation issue as VACATION_ISSUE_SUBJECT=<vacation_subject> in lib/workload/workload.rb
+  * default: 'Ferien'
+
 == Usage
+* Add vacations
+  * manually for each vacation day
+    * vacation issue -> Log time
+    * select date and hours
+  * or use the Redmine Working Hours plugin
+    * configure working hours vacations with the same <vacation_subject>

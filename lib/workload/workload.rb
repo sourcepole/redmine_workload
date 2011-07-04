@@ -28,6 +28,8 @@ module Workload
     MEASURE_WORKLOAD = 3
     MEASURE_AVAILABILITY = 4
 
+    VACATION_ISSUE_SUBJECT = 'Ferien'
+
     def initialize(options={})
       options = options.dup
 
@@ -197,20 +199,18 @@ module Workload
         :order => "start_date"
       ).reject { |issue| !issue.start_date.blank? && issue.start_date > self.date_to }
 
-      user_capacities = get_user_capacities(user)
-
       # init days
       workload_days = []
       date = self.date_from
       while date <= self.date_to
         coords = coordinates(date, date, nil, options[:zoom])
-        workload_days << {:html_coords => coords, :issues_effort => 0, :issues => [], :user_capacity => user_capacities[date.wday], :date => date}
+        workload_days << {:html_coords => coords, :issues_effort => 0, :issues => [], :user_capacity => user_capacity(user, date), :date => date}
         date += 1
       end
 
       # apply user issues
       issues.each do |issue|
-        apply_issue_effort(issue, issues, workload_days, Date.today, user_capacities)
+        apply_issue_effort(issue, issues, workload_days, Date.today)
       end
 
       workload_days.each do |workload|
@@ -249,7 +249,7 @@ module Workload
     end
 
     # Calculate effort distribution of issue in remaining duration from workload_start_date
-    def apply_issue_effort(issue, issues, workload_days, workload_start_date, user_capacities)
+    def apply_issue_effort(issue, issues, workload_days, workload_start_date)
       # workload days range
       workload_days_date_from = workload_days.first[:date]
       workload_days_date_to = workload_days.last[:date]
@@ -274,17 +274,26 @@ module Workload
       total_user_capacity = 0
       date = from_date
       while date <= issue.due_date
-        total_user_capacity += user_capacities[date.wday]
+        if date <= workload_days_date_to
+          # use cached value from workload_days
+          index = date - workload_days_date_from
+          total_user_capacity += workload_days[index][:user_capacity]
+        else
+          # date outside visible workload range
+          total_user_capacity += user_capacity(issue.assigned_to, date)
+        end
         date += 1
       end
 
       # apply issue effort
       estimated_hours, spent_hours = remaining_hours_without_sub_issues(issue, issues)
       issue_remaining_hours = estimated_hours - spent_hours
+      if issue_remaining_hours < 0
+        issue_remaining_hours = 0
+      end
 
       if issue.due_date < workload_start_date && from_date == workload_start_date
         # issue is overdue, add to first day
-        # TODO: overdue marker?
         index = from_date - workload_days_date_from
         workload_days[index][:issues_effort] += issue_remaining_hours
         if workload_days[index][:overdue_issues].nil?
@@ -350,8 +359,29 @@ module Workload
         end
         wday += 1
       end
-      
+
       user_capacities
+    end
+
+    # User capacity for a given date, including vacations
+    def user_capacity(user, date)
+      @user_capacities ||= get_user_capacities(user)
+      user_capacity = @user_capacities[date.wday]
+
+      # add vacations
+      vacation_issue = Issue.find_by_subject(VACATION_ISSUE_SUBJECT)
+      unless vacation_issue.nil?
+        # get time entry for user + day
+        time_entry = TimeEntry.find(:first, :conditions => ["user_id=? AND issue_id=? AND spent_on=?", user.id, vacation_issue.id, date])
+        unless time_entry.nil?
+          user_capacity -= time_entry.hours
+          if user_capacity < 0
+            user_capacity = 0
+          end
+        end
+      end
+
+      user_capacity
     end
 
     def render_end(options={})
