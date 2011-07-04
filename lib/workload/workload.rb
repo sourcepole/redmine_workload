@@ -287,8 +287,10 @@ module Workload
         # TODO: overdue marker?
         index = from_date - workload_days_date_from
         workload_days[index][:issues_effort] += issue_remaining_hours
-        workload_days[index][:issues] << issue
-        workload_days[index][:overdue] = true
+        if workload_days[index][:overdue_issues].nil?
+          workload_days[index][:overdue_issues] = []
+        end
+        workload_days[index][:overdue_issues] << issue
       else
         # split issue effort per day according to user capacity distribution
         date = from_date
@@ -709,7 +711,7 @@ module Workload
       end
 
       # overdue
-      if workload[:overdue] && coords[:start]
+      if workload[:overdue_issues] && coords[:start]
         output << "<div style='top:#{ params[:top] }px;left:#{ coords[:start] }px;width:15px;' class='workload workload_overdue'>&nbsp;</div>"
       end
 
@@ -747,7 +749,7 @@ module Workload
       end
 
       # overdue
-      if workload[:overdue] && coords[:start]
+      if workload[:overdue_issues] && coords[:start]
         x = params[:subject_width] + coords[:start]
         y = params[:top] + height
         params[:image].fill('#FF0000')
@@ -790,7 +792,7 @@ module Workload
       end
 
       # overdue
-      if workload[:overdue] && coords[:start]
+      if workload[:overdue_issues] && coords[:start]
         params[:pdf].SetY(params[:top] + 1.5 + height)
         params[:pdf].SetX(params[:subject_width] + coords[:bar_start])
         params[:pdf].SetFillColor(255, 0, 0)

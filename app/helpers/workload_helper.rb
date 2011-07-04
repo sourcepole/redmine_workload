@@ -34,6 +34,7 @@ module WorkloadHelper
     @cached_label_workload ||= l(:measure_workload)
     @cached_label_availability ||= l(:measure_availability)
     @cached_label_issues ||= l(:label_issue_plural)
+    @cached_label_overdue ||= l(:label_overdue)
 
     html = "<strong>#{@cached_label_date}</strong>: #{workload[:date]}<br/>" +
     "<strong>#{@cached_label_user_capacity}</strong>: #{workload[:user_capacity]} h<br/>" +
@@ -42,10 +43,17 @@ module WorkloadHelper
     "<strong>#{@cached_label_workload}</strong>: #{workload[:measure][:workload]} %<br/>" +
     "<strong>#{@cached_label_availability}</strong>: #{workload[:measure][:availability]} %<br/>"
 
-    unless workload[:issues].nil? || workload[:issues].empty?
+    unless (workload[:issues].nil? || workload[:issues].empty?) && (workload[:overdue_issues].nil? || workload[:overdue_issues].empty?)
       html += "<strong>#{@cached_label_issues}</strong>:<ul>"
-      workload[:issues].each do |issue|
-        html += "<li>#{link_to_issue(issue)}</li>"
+      unless workload[:overdue_issues].nil?
+        workload[:overdue_issues].each do |issue|
+          html += "<li>#{@cached_label_overdue}: #{link_to_issue(issue)}</li>"
+        end
+      end
+      unless workload[:issues].nil?
+        workload[:issues].each do |issue|
+          html += "<li>#{link_to_issue(issue)}</li>"
+        end
       end
       html += "</ul>"
     end

@@ -1,5 +1,6 @@
 en:
   label_workload: Workload
+  label_overdue: overdue
   notice_workload_chart_truncated: "The chart was truncated because it exceeds the maximum number of items that can be displayed (%{max})"
   user_capacity: Capacity
   default_measure: Default measure
