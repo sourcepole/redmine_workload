@@ -47,12 +47,12 @@ module WorkloadHelper
       html += "<strong>#{@cached_label_issues}</strong>:<ul>"
       unless workload[:overdue_issues].nil?
         workload[:overdue_issues].each do |issue|
-          html += "<li>#{@cached_label_overdue}: #{link_to_issue(issue)}</li>"
+          html += "<li>#{@cached_label_overdue}: #{workload_issue_line(issue)}</li>"
         end
       end
       unless workload[:issues].nil?
         workload[:issues].each do |issue|
-          html += "<li>#{link_to_issue(issue)}</li>"
+          html += "<li>#{workload_issue_line(issue)}</li>"
         end
       end
       html += "</ul>"
@@ -63,6 +63,10 @@ module WorkloadHelper
   
   def format_number(value)
     number_with_precision(value, :precision => 2, :separator => '.')
+  end
+
+  def workload_issue_line(issue)
+    "#{link_to_issue(issue)} (#{issue.status}, #{issue.priority})"
   end
 
 end
