@@ -1,4 +1,4 @@
-<strong><%= @cached_label_date %></strong>: <%= @tooltip_workload[:date] %><br/>
+<strong><%= @cached_label_date %></strong>: <%= @tooltip_workload[:date] %><%= " - #{@tooltip_workload[:end_date]}" unless @tooltip_workload[:date] == @tooltip_workload[:end_date] %><br/>
 <strong><%= @cached_label_user_capacity %></strong>: <%= format_number(@tooltip_workload[:user_capacity]) %> h<br/>
 <strong><%= @cached_label_planned_capacity %></strong>: <%= format_number(@tooltip_workload[:measure][:planned_capacity]) %> h<br/>
 <strong><%= @cached_label_free_capacity %></strong>: <%= format_number(@tooltip_workload[:measure][:free_capacity]) %> h<br/>

@@ -207,7 +207,7 @@ module Workload
       date = self.date_from
       while date <= self.date_to
         coords = coordinates(date, date, nil, options[:zoom])
-        workload_days << {:html_coords => coords, :issues_effort => 0, :issues => [], :user_capacity => user_capacity(user, date), :date => date}
+        workload_days << {:html_coords => coords, :issues_effort => 0, :issues => [], :overdue_issues => [], :user_capacity => user_capacity(user, date), :date => date, :end_date => date}
         date += 1
       end
 
@@ -216,9 +216,17 @@ module Workload
         apply_issue_effort(issue, issues, workload_days, Date.today)
       end
 
-      workload_days.each do |workload|
+      if options[:zoom] > 4
+        # show workload days
+        workloads = workload_days
+      else
+        # show workload weeks
+        workloads = workload_weeks(workload_days, options)
+      end
+
+      workloads.each do |workload|
         # TODO: skip free days?
-        next if workload[:user_capacity] == 0 || workload[:date] < Date.today
+        next if workload[:user_capacity] == 0 || workload[:end_date] < Date.today
 
         calculate_measures(workload)
 
@@ -300,9 +308,6 @@ module Workload
         # issue is overdue, add to first day
         index = from_date - workload_days_date_from
         workload_days[index][:issues_effort] += issue_remaining_hours
-        if workload_days[index][:overdue_issues].nil?
-          workload_days[index][:overdue_issues] = []
-        end
         workload_days[index][:overdue_issues] << issue
       else
         # split issue effort per day according to user capacity distribution
@@ -330,6 +335,44 @@ module Workload
         end
       end
       return estimated_hours, spent_hours
+    end
+
+    # collect weekly workloads from monday to sunday
+    def workload_weeks(workload_days, options)
+      workload_weeks = []
+      weekly_user_capacity = 0
+      weekly_issues_effort = 0
+      weekly_issues = []
+      weekly_overdue_issues = []
+      workload_days.each do |workload|
+        weekly_user_capacity += workload[:user_capacity]
+        weekly_issues_effort += workload[:issues_effort]
+        workload[:issues].each do |issue|
+          weekly_issues << issue unless weekly_issues.include?(issue)
+        end
+        workload[:overdue_issues].each do |issue|
+          weekly_overdue_issues << issue unless weekly_overdue_issues.include?(issue)
+        end
+
+        if workload[:date].wday == 0
+          weekly_workload = {}
+          weekly_workload[:html_coords] = coordinates(workload[:date] - 6, workload[:date], nil, options[:zoom])
+          weekly_workload[:issues_effort] = weekly_issues_effort
+          weekly_workload[:issues] = weekly_issues
+          weekly_workload[:overdue_issues] = weekly_overdue_issues if weekly_overdue_issues
+          weekly_workload[:user_capacity] = weekly_user_capacity
+          weekly_workload[:date] = workload[:date] - 6
+          weekly_workload[:end_date] = workload[:date]
+          workload_weeks << weekly_workload
+
+          # reset weekly values
+          weekly_user_capacity = 0
+          weekly_issues_effort = 0
+          weekly_issues = []
+          weekly_overdue_issues = []
+        end
+      end
+      workload_weeks
     end
 
     def calculate_measures(workload)
@@ -736,16 +779,16 @@ module Workload
         output << "<div style='top:#{ params[:top] }px;left:#{ coords[:bar_start] }px;width:#{ coords[:bar_end] - coords[:bar_start] - 2}px;' class='workload #{workload_class}'>&nbsp;</div>"
 
         # tooltip
-        if params[:zoom] >= 4
+#        if params[:zoom] >= 4
           output << "<div class='tooltip' style='position:absolute;top:#{ params[:top] }px;left:#{ coords[:bar_start] }px;width:#{ coords[:bar_end] - coords[:bar_start] }px;height:12px;'>"
           output << "<span class='workload tip' style='left:0'>"
           output << view.render_workload_tooltip(workload)
           output << "</span></div>"
-        end
+#        end
       end
 
       # overdue
-      if workload[:overdue_issues] && coords[:start]
+      if workload[:overdue_issues].any? && coords[:start]
         output << "<div style='top:#{ params[:top] }px;left:#{ coords[:start] }px;width:15px;' class='workload workload_overdue'>&nbsp;</div>"
       end
 
@@ -783,7 +826,7 @@ module Workload
       end
 
       # overdue
-      if workload[:overdue_issues] && coords[:start]
+      if workload[:overdue_issues].any? && coords[:start]
         x = params[:subject_width] + coords[:start]
         y = params[:top] + height
         params[:image].fill('#FF0000')
@@ -826,7 +869,7 @@ module Workload
       end
 
       # overdue
-      if workload[:overdue_issues] && coords[:start]
+      if workload[:overdue_issues].any? && coords[:start]
         params[:pdf].SetY(params[:top] + 1.5 + height)
         params[:pdf].SetX(params[:subject_width] + coords[:bar_start])
         params[:pdf].SetFillColor(255, 0, 0)
