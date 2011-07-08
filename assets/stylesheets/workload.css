@@ -55,3 +55,7 @@ div.workload {
 .workload.tip ul {
   margin: 0 0 0 -20px;
 }
+
+.workload.tip fieldset {
+  font-size: 1.0em;
+}

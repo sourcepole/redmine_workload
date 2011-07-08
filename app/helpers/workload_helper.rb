@@ -33,32 +33,14 @@ module WorkloadHelper
     @cached_label_free_capacity ||= l(:measure_free_capacity)
     @cached_label_workload ||= l(:measure_workload)
     @cached_label_availability ||= l(:measure_availability)
+    @cached_label_issue ||= l(:label_issue)
     @cached_label_issues ||= l(:label_issue_plural)
     @cached_label_overdue ||= l(:label_overdue)
 
-    html = "<strong>#{@cached_label_date}</strong>: #{workload[:date]}<br/>" +
-    "<strong>#{@cached_label_user_capacity}</strong>: #{format_number(workload[:user_capacity])} h<br/>" +
-    "<strong>#{@cached_label_planned_capacity}</strong>: #{format_number(workload[:measure][:planned_capacity])} h<br/>" +
-    "<strong>#{@cached_label_free_capacity}</strong>: #{format_number(workload[:measure][:free_capacity])} h<br/>" +
-    "<strong>#{@cached_label_workload}</strong>: #{format_number(workload[:measure][:workload])} %<br/>" +
-    "<strong>#{@cached_label_availability}</strong>: #{format_number(workload[:measure][:availability])} %<br/>"
-
-    unless (workload[:issues].nil? || workload[:issues].empty?) && (workload[:overdue_issues].nil? || workload[:overdue_issues].empty?)
-      html += "<strong>#{@cached_label_issues}</strong>:<ul>"
-      unless workload[:overdue_issues].nil?
-        workload[:overdue_issues].each do |issue|
-          html += "<li>#{@cached_label_overdue}: #{workload_issue_line(issue)}</li>"
-        end
-      end
-      unless workload[:issues].nil?
-        workload[:issues].each do |issue|
-          html += "<li>#{workload_issue_line(issue)}</li>"
-        end
-      end
-      html += "</ul>"
-    end
-
-    html
+    @tooltip_workload = workload
+    @issues = workload[:issues] || []
+    @overdue_issues = workload[:overdue_issues] || []
+    render :partial => 'workload/tooltip'
   end
   
   def format_number(value)
