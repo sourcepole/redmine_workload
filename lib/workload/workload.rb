@@ -226,12 +226,13 @@ module Workload
         case @measure
         when MEASURE_PLANNED_CAPACITY
 #          workload[:value] = workload[:measure][:planned_capacity] # FIXME: style for absolute values, show relative value for now
-          workload[:value] = workload[:measure][:workload]
+          workload[:value] = workload[:measure][:availability]
         when MEASURE_FREE_CAPACITY
 #          workload[:value] = workload[:measure][:free_capacity] # FIXME: style for absolute values, show relative value for now
           workload[:value] = workload[:measure][:availability]
         when MEASURE_WORKLOAD
-          workload[:value] = workload[:measure][:workload]
+#          workload[:value] = workload[:measure][:workload]
+          workload[:value] = workload[:measure][:availability]
         when MEASURE_AVAILABILITY
           workload[:value] = workload[:measure][:availability]
         else
