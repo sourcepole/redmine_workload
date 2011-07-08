@@ -37,11 +37,11 @@ module WorkloadHelper
     @cached_label_overdue ||= l(:label_overdue)
 
     html = "<strong>#{@cached_label_date}</strong>: #{workload[:date]}<br/>" +
-    "<strong>#{@cached_label_user_capacity}</strong>: #{workload[:user_capacity]} h<br/>" +
-    "<strong>#{@cached_label_planned_capacity}</strong>: #{workload[:measure][:planned_capacity]} h<br/>" +
-    "<strong>#{@cached_label_free_capacity}</strong>: #{workload[:measure][:free_capacity]} h<br/>" +
-    "<strong>#{@cached_label_workload}</strong>: #{workload[:measure][:workload]} %<br/>" +
-    "<strong>#{@cached_label_availability}</strong>: #{workload[:measure][:availability]} %<br/>"
+    "<strong>#{@cached_label_user_capacity}</strong>: #{format_number(workload[:user_capacity])} h<br/>" +
+    "<strong>#{@cached_label_planned_capacity}</strong>: #{format_number(workload[:measure][:planned_capacity])} h<br/>" +
+    "<strong>#{@cached_label_free_capacity}</strong>: #{format_number(workload[:measure][:free_capacity])} h<br/>" +
+    "<strong>#{@cached_label_workload}</strong>: #{format_number(workload[:measure][:workload])} %<br/>" +
+    "<strong>#{@cached_label_availability}</strong>: #{format_number(workload[:measure][:availability])} %<br/>"
 
     unless (workload[:issues].nil? || workload[:issues].empty?) && (workload[:overdue_issues].nil? || workload[:overdue_issues].empty?)
       html += "<strong>#{@cached_label_issues}</strong>:<ul>"
@@ -59,6 +59,10 @@ module WorkloadHelper
     end
 
     html
+  end
+  
+  def format_number(value)
+    number_with_precision(value, :precision => 2, :separator => '.')
   end
 
 end
