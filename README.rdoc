@@ -33,7 +33,7 @@ Run the unit tests:
 === User capacities
 * add user capacity custom fields for each weekday
   * Administration -> Custom fields -> Users -> New custom field
-  * Names for weekdays: workload_capacity_monday, workload_capacity_tuesday, workload_capacity_wednesday, workload_capacity_thursday, workload_capacity_friday, workload_capacity_saturday,   * Names: workload_capacity_monday, workload_capacity_tuesday, workload_capacity_wednesday, workload_capacity_thursday, workload_capacity_friday, workload_capacity_saturday,   * Names: workload_capacity_monday, workload_capacity_tuesday, workload_capacity_wednesday, workload_capacity_thursday, workload_capacity_friday, workload_capacity_saturday, workload_capacity_sunday
+  * Names for weekdays: workload_capacity_monday, workload_capacity_tuesday, workload_capacity_wednesday, workload_capacity_thursday, workload_capacity_friday, workload_capacity_saturday, workload_capacity_sunday
   * Format: Float
   * Default value: default user capacity in hours
   * Required: check
