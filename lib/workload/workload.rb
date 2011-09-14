@@ -181,7 +181,7 @@ module Workload
         subject = "<span class='icon icon-user'>"
         subject << view.link_to_user(user)
         subject << '</span>'
-        html_subject(options, subject, :css => "project-name")
+        html_subject(options, subject, :css => "workload_user_name")
       when :image
         image_subject(options, user.name)
       when :pdf

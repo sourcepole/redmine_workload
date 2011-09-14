@@ -9,6 +9,17 @@ div.workload {
   white-space:nowrap;
 }
 
+.workload_user_name {
+  background-image: url(/plugin_assets/redmine_workload/images/dot.png);
+  background-repeat: repeat-x;
+  background-position: 0 3px;
+}
+
+.icon-user {
+  background-color: #FFFFFF;
+  padding-right: 4px;
+}
+
 .workload_0 {
   background: #FF0000;
   border: 1px solid #A00000;
