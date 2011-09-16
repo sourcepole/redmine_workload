@@ -1,6 +1,7 @@
 require 'redmine'
 
 require_dependency 'workload/hooks'
+require 'workload/gantt_patch'
 
 Redmine::Plugin.register :redmine_workload do
   name 'Workload plugin'

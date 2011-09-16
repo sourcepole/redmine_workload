@@ -33,6 +33,9 @@ module Workload
     def initialize(options={})
       options = options.dup
 
+      options[:month] ||= User.current.pref[:gantt_month]
+      options[:year] ||= User.current.pref[:gantt_year]
+
       if options[:year] && options[:year].to_i >0
         @year_from = options[:year].to_i
         if options[:month] && options[:month].to_i >=1 && options[:month].to_i <= 12
@@ -50,9 +53,12 @@ module Workload
       months = (options[:months] || User.current.pref[:gantt_months]).to_i
       @months = (months > 0 && months < 25) ? months : 6
 
-      # Save workload parameters as user preference (zoom and months count)
-      if (User.current.logged? && (@zoom != User.current.pref[:gantt_zoom] || @months != User.current.pref[:gantt_months]))
-        User.current.pref[:gantt_zoom], User.current.pref[:gantt_months] = @zoom, @months
+      # Save workload parameters as user preference (zoom, months count, month, year)
+      if (User.current.logged? && (@zoom != User.current.pref[:gantt_zoom] || @months != User.current.pref[:gantt_months] || @month_from != User.current.pref[:gantt_month] || @year_from != User.current.pref[:gantt_year]))
+        User.current.pref[:gantt_zoom] = @zoom
+        User.current.pref[:gantt_months] = @months
+        User.current.pref[:gantt_month] = @month_from
+        User.current.pref[:gantt_year] = @year_from
         User.current.preference.save
       end
 
