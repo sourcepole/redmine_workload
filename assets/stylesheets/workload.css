@@ -45,6 +45,26 @@ div.workload {
   border: 1px solid #00A000;
 }
 
+.workload_a {
+  background: #FFC000;
+  border: 1px solid #A05000;
+}
+
+.workload_b {
+  background: #FFFF00;
+  border: 1px solid #A0A000;
+}
+
+.workload_c {
+  background: #00FF00;
+  border: 1px solid #00A000;
+}
+
+.workload_d {
+  background: #FF0000;
+  border: 1px solid #A00000;
+}
+
 .workload_empty {
   background: #FF0000 url(/plugin_assets/redmine_workload/images/overflow.png);
   border: 1px solid #000000;

@@ -247,8 +247,7 @@ module Workload
 #          workload[:value] = workload[:measure][:free_capacity] # FIXME: style for absolute values, show relative value for now
           workload[:value] = workload[:measure][:availability]
         when MEASURE_WORKLOAD
-#          workload[:value] = workload[:measure][:workload]
-          workload[:value] = workload[:measure][:availability]
+          workload[:value] = workload[:measure][:workload]
         when MEASURE_AVAILABILITY
           workload[:value] = workload[:measure][:availability]
         else
@@ -775,12 +774,24 @@ module Workload
 
       if coords[:bar_start] && coords[:bar_end]
         # calculate style bin
-        bin = (value/25).floor * 25
-        workload_class = "workload_#{bin}"
-        if bin > 100
-          workload_class = "workload_full"
-        elsif bin < 0
-          workload_class = "workload_empty"
+        if @measure == MEASURE_WORKLOAD
+          if value >= 0.0 && value < 90
+            workload_class = "workload_a"
+          elsif value >= 90 && value < 100
+            workload_class = "workload_b"
+          elsif value >= 100 && value < 110
+            workload_class = "workload_c"
+          else
+            workload_class = "workload_d"
+          end
+        else
+          bin = (value/25).floor * 25
+          workload_class = "workload_#{bin}"
+          if bin > 100
+            workload_class = "workload_full"
+          elsif bin < 0
+            workload_class = "workload_empty"
+          end
         end
         
         # bar
@@ -810,14 +821,28 @@ module Workload
       height = 6
 
       if coords[:bar_start] && coords[:bar_end]
-        colors = ['#FF0000', '#FFC000', '#FFFF00', '#C0FF00', '#00FF00', '#00FF00', '#FF0000']
-        bin = (value/25).floor
-        if bin > 4
-          color = colors[5]
-        elsif bin < 0
-          color = colors[6]
+        if @measure == MEASURE_WORKLOAD
+          colors = ['#FFC000', '#FFFF00', '#00FF00', '#FF0000']
+          bin = 0
+          if value >= 0.0 && value < 90
+            color = colors[0]
+          elsif value >= 90 && value < 100
+            color = colors[1]
+          elsif value >= 100 && value < 110
+            color = colors[2]
+          else
+            color = colors[3]
+          end
         else
-          color = colors[bin]
+          colors = ['#FF0000', '#FFC000', '#FFFF00', '#C0FF00', '#00FF00', '#00FF00', '#FF0000']
+          bin = (value/25).floor
+          if bin > 4
+            color = colors[5]
+          elsif bin < 0
+            color = colors[6]
+          else
+            color = colors[bin]
+          end
         end
 
         # bar
@@ -849,14 +874,28 @@ module Workload
       height = 2
 
       if coords[:bar_start] && coords[:bar_end]
-        colors = [[255, 0, 0], [255, 192, 0], [255, 255, 0], [192, 255, 0], [0, 255, 0], [0, 255, 0], [255, 0, 0]]
-        bin = (value/25).floor
-        if bin > 4
-          color = colors[5]
-        elsif bin < 0
-          color = colors[6]
+        if @measure == MEASURE_WORKLOAD
+          colors = [[255, 192, 0], [255, 255, 0], [0, 255, 0], [255, 0, 0]]
+          bin = 0
+          if value >= 0.0 && value < 90
+            color = colors[0]
+          elsif value >= 90 && value < 100
+            color = colors[1]
+          elsif value >= 100 && value < 110
+            color = colors[2]
+          else
+            color = colors[3]
+          end
         else
-          color = colors[bin]
+          colors = [[255, 0, 0], [255, 192, 0], [255, 255, 0], [192, 255, 0], [0, 255, 0], [0, 255, 0], [255, 0, 0]]
+          bin = (value/25).floor
+          if bin > 4
+            color = colors[5]
+          elsif bin < 0
+            color = colors[6]
+          else
+            color = colors[bin]
+          end
         end
 
         # bar
