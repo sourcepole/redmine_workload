@@ -149,7 +149,9 @@ module Workload
         :conditions => ["#{Issue.table_name}.assigned_to_id IS NOT NULL"],
         :order => "#{Project.table_name}.lft ASC, #{Issue.table_name}.id ASC",
         :limit => @max_rows
-      ).collect(&:assigned_to).uniq.reject{ |user| user.locked? }.uniq.sort{ |a,b| a.lastname <=> b.lastname }
+      ).collect(&:assigned_to).uniq.
+        reject{ |user| Setting.plugin_redmine_workload[:workload_show_locked_users] == "1" ? false : user.locked? }.
+        uniq.sort{ |a,b| a.lastname <=> b.lastname }
     end
 
     def render(options={})

@@ -1,4 +1,7 @@
 <p>
   <label><%= l(:default_measure) %></label>
   <%= select_tag "settings[workload_measure]", options_for_select(Workload::Workload::measures_for_select, @settings['workload_measure'].to_i) %>
+  <br/>
+  <label><%= l(:show_locked_users) %></label>
+  <%= check_box_tag "settings[workload_show_locked_users]", "1", @settings['workload_show_locked_users'] == "1" %>
 </p>

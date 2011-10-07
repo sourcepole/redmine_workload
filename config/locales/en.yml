@@ -9,3 +9,4 @@ en:
   measure_free_capacity: Free capacity
   measure_workload: Workload
   measure_availability: Availability
+  show_locked_users: Show locked users
